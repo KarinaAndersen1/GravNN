@@ -154,40 +154,39 @@ class Heatmap3DVisualizer(VisualizationBase):
         ax.set_xlabel(x_formatted, labelpad=0.0)
         ax.set_ylabel(y_formatted, labelpad=0.0)
 
+        ax.set_zscale('log')
+
         return 
 
 
 def main():
-    df_file = "Data/Dataframes/epochs_N_search_all_metrics.data"
-    df = pd.read_pickle(df_file)
+    df_file = "Data/Metrics_Test2.csv"
+    df = pd.read_csv(df_file)
 
-    df['percent_mean'] = df['percent_mean']*100
-    v_min = df['percent_mean'].min()
-    v_max = df['percent_mean'].max()
+    #df['percent_mean'] = df['percent_mean']*100
+    v_min = 0.004
+    v_max = df['Test'].max()
 
 
     vis = HeatmapVisualizer(df)
-    query = "num_units == 10"
+    #query = "num_units == 10"
     vis.plot(
-            x='epochs', 
-            y='N_train', 
-            z='percent_mean', 
+            x='K_before', 
+            y='R_before', 
+            z='Test', 
             vmin=v_min, 
-            vmax=v_max, 
-            query=query
+            vmax=v_max
         )
 
 
-
     vis = Heatmap3DVisualizer(df)
-    query = "num_units == 10"
+    #query = "num_units == 10"
     vis.plot(
-            x='epochs', 
-            y='N_train', 
-            z='percent_mean', 
+            x='K_before', 
+            y='R_before', 
+            z='Test', 
             vmin=v_min, 
-            vmax=v_max, 
-            query=query
+            vmax=v_max
         )
    
     plt.show()

@@ -8,7 +8,7 @@ os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] ='YES'
 def main():
 
     # dataframe where the network configuration info will be saved
-    df_file = "Data/Dataframes/example_training.data" 
+    df_file = "Data/Dataframes/untrained2.data" 
 
     # a default set of hyperparameters / configuration details for PINN
     config = get_default_eros_config()
@@ -23,14 +23,15 @@ def main():
         "N_val": [500],
         "batch_size" : [4096],
         "PINN_constraint_fcn": ["pinn_a"],
-
-        # 'trainable_tanh' : [True],
-        # 'tanh_k' : [1.0],
-        # 'tanh_r' : [1.0],
+        "epochs" : [2000],
+        'trainable_tanh' : [False],
+        'tanh_k' : [1.0],
+        'tanh_r' : [1.0]
     })
 
-
-    threads = 1
+    # Plot outliers on the z axis
+    # 
+    threads = 10
     args = configure_run_args(config, hparams)
     with mp.Pool(threads) as pool:
         results = pool.starmap_async(run, args)

@@ -10,6 +10,7 @@ import os
 import pandas as pd
 import seaborn as sns
 import sigfig
+from scipy.optimize import curve_fit
 from GravNN.Networks.Model import load_config_and_model
 
 
@@ -55,6 +56,14 @@ class ExtrapolationVisualizer(VisualizationBase):
         plt.hist(x, 50, alpha=0.2)
         plt.ylabel('Frequency')
         ax.set_zorder(1)
+    
+    def plot_tanh(self):
+        ax2 = plt.twinx()
+        x = np.linspace(0, 30, 300)
+        plt.plot(x, np.tanh(x), 'g-')
+        plt.ylabel('Tanh')
+        plt.yscale('linear')
+        ax2.set_zorder(2)
 
     def plot(self, x, value, **kwargs):
         # compute trend lines
@@ -64,12 +73,15 @@ class ExtrapolationVisualizer(VisualizationBase):
             std = df.rolling(50, 25).std()
             max = df.rolling(10, 10).max()
             return avg, std, max
-        
+
         # sort entries
         avg_line, std_line, max_line = get_rolling_lines(value)
+        training_bounds = self.training_bounds / self.radius
+        x_vals = np.linspace(0, 30, 300)
         
         self.newFig()
         plt.scatter(x, value, alpha=0.2, s=2)
+        
         self.plot_fcn(x, avg_line)
 
         if kwargs.get("plot_std", True):
@@ -79,13 +91,14 @@ class ExtrapolationVisualizer(VisualizationBase):
             
         self.plot_fcn(x, max_line, color='red')
         
-        training_bounds = self.training_bounds / self.radius
         plt.vlines(training_bounds[0], ymin=0, ymax=np.max(value), color='green')
         plt.vlines(training_bounds[1], ymin=0, ymax=np.max(value), color='green')
         plt.vlines(1, ymin=0, ymax=np.max(value), color='grey')
         if self.annotate:
             self.annotate_metrics(value)
+
         plt.tight_layout()
+        
 
     def plot_interpolation_loss(self, **kwargs):
         self.plot(
@@ -109,7 +122,7 @@ class ExtrapolationVisualizer(VisualizationBase):
         plt.ylabel("Loss")
         plt.xlabel(self.x_label)
 
-    def plot_interpolation_rms(self, **kwargs):
+    def plot_interpolation_rms(self, id, **kwargs):
         self.plot(
             self.x_test[:self.max_idx],
             self.experiment.losses['rms'][self.idx_test][:self.max_idx],
@@ -120,8 +133,10 @@ class ExtrapolationVisualizer(VisualizationBase):
         plt.xlabel(self.x_label)
         plt.ylim([0,None])
         self.plot_histogram(self.x_train)
+        self.plot_tanh()
+        plt.savefig(str(id) + 'interpolation_rms.png')
 
-    def plot_extrapolation_rms(self, **kwargs):
+    def plot_extrapolation_rms(self, id, **kwargs):
         self.plot(
             self.x_test,
             self.experiment.losses['rms'][self.idx_test],
@@ -129,8 +144,10 @@ class ExtrapolationVisualizer(VisualizationBase):
         plt.gca().set_yscale('log')
         plt.ylabel("RMS [$m/s^2$]")
         plt.xlabel(self.x_label)
+        self.plot_tanh()
+        plt.savefig(str(id) + 'extrapolation_rms.png')
 
-    def plot_interpolation_percent_error(self, **kwargs):
+    def plot_interpolation_percent_error(self, id, **kwargs):
         self.plot(
             self.x_test[:self.max_idx],
             self.experiment.losses['percent'][self.idx_test][:self.max_idx],
@@ -140,16 +157,19 @@ class ExtrapolationVisualizer(VisualizationBase):
         plt.xlabel(self.x_label)
         plt.ylim([0,None])
         self.plot_histogram(self.x_train)
+        self.plot_tanh()
+        plt.savefig(str(id) + 'interpolation_percent_error.png')
 
-    def plot_extrapolation_percent_error(self, **kwargs):
+    def plot_extrapolation_percent_error(self, id, **kwargs):
         self.plot(
             self.x_test,
             self.experiment.losses['percent'][self.idx_test],
-            **kwargs)       
+            **kwargs
+            )    
         plt.ylabel("Percent Error")
         plt.xlabel(self.x_label)
-
-
+        self.plot_tanh()
+        plt.savefig(str(id) + 'extrapolation_percent_error.png')
 
     def plot_scatter_error(self):
 
@@ -161,9 +181,6 @@ class ExtrapolationVisualizer(VisualizationBase):
         colors = plt.cm.RdYlGn(1 - ((error  - np.min(error)) / scale))   
         op.plot3d(self.experiment.positions[:self.max_idx].T, cVec=colors, obj_file=self.experiment.config['grav_file'][0], plot_type='scatter', alpha=0.2)
 
-
-
-
         # self.new3DFig()
         # x = (self.r / self.radius)
 
@@ -174,22 +191,25 @@ class ExtrapolationVisualizer(VisualizationBase):
         # plt.scatter3d(x, y, z, alpha=0.2, s=2)
 
 def main():
-    df = pd.read_pickle("Data/Dataframes/example_training.data")
+    df = pd.read_pickle("Data/Dataframes/tanhktanhr11.data")
 
-    model_id = df["id"].values[-1] # with scaling
-    config, model = load_config_and_model(model_id, df)
+    for id in df["id"].values:
+        #model_id = df["id"].values[-1]  with scaling
+        config, model = load_config_and_model(id, df)
 
-    # evaluate the error at "training" altitudes and beyond
-    extrapolation_exp = ExtrapolationExperiment(model, config, 10000)
-    extrapolation_exp.run()
+        # evaluate the error at "training" altitudes and beyond
+        extrapolation_exp = ExtrapolationExperiment(model, config, 1000)
+        extrapolation_exp.run()
 
-    # visualize error @ training altitude and beyond
-    vis = ExtrapolationVisualizer(extrapolation_exp, x_axis='dist_2_COM', plot_fcn=plt.semilogy)
-    vis.plot_interpolation_percent_error()
-    vis.plot_extrapolation_percent_error()
-    vis.plot_interpolation_rms()
-    vis.plot_extrapolation_rms()
+        # visualize error @ training altitude and beyond
+        vis = ExtrapolationVisualizer(extrapolation_exp, x_axis='dist_2_COM', plot_fcn=plt.semilogy)
+        vis.plot_interpolation_percent_error(id)
+        vis.plot_extrapolation_percent_error(id)
+        vis.plot_interpolation_rms(id)
+        vis.plot_extrapolation_rms(id)
 
-    plt.show()
+        plt.show()
+
+
 if __name__ == "__main__":
     main()
